@@ -1,0 +1,15 @@
+# Rust / Tauri
+/launcher/src-tauri/target/
+/launcher/src-tauri/gen/schemas/
+
+# Node
+/launcher/node_modules/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
