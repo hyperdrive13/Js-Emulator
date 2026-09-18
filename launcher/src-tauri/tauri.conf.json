@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Android Game Launcher",
+  "productName": "Js Emulator",
   "version": "0.1.0",
-  "identifier": "com.jwolf.android-game-launcher",
+  "identifier": "com.jwolf.js-emulator",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Android Game Launcher",
+        "title": "Js Emulator",
         "width": 800,
         "height": 600
       }

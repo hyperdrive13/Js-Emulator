@@ -1,4 +1,4 @@
-# Android Game Launcher
+# Js Emulator
 
 A downloadable desktop app (Windows + Linux) that gives you and friends your
 own Android instance for playing mobile games — one download, no manual
