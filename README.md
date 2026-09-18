@@ -53,7 +53,10 @@ KVM, and Rust toolchain installed/reachable):
 - [x] Full boot test on Linux: real Android 16 home screen, Play Store +
       Google apps present, **confirmed actual GPU rendering** (RTX 3090 shows
       up as the graphics adapter in the emulator log, not software fallback)
-- [ ] Windows testing (everything so far has only run on Linux)
+- [ ] **Windows testing — not done yet.** Everything above has only run on
+      Linux. Treat Windows as unverified until this line is updated — don't
+      assume it works there just because the code has `cfg!(windows)`
+      branches for paths/binary names.
 - [ ] Packaging real installers (.exe / .AppImage or .deb)
 - [ ] Icon/branding (currently the Tauri default icon)
 - [ ] Per-app keymapping presets (mouse/keyboard → touch)
