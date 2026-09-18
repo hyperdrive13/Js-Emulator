@@ -11,7 +11,16 @@
   <body>
     <main class="container">
       <h1>Android Game Launcher</h1>
-      <p id="subtitle">One click, one Android instance, ready for your games.</p>
+      <p id="subtitle">Pick a device and Android version, then play.</p>
+
+      <div class="row">
+        <label for="device-select">Device</label>
+        <select id="device-select"></select>
+      </div>
+      <div class="row">
+        <label for="version-select">Android version</label>
+        <select id="version-select"></select>
+      </div>
 
       <button id="setup-btn">Set Up</button>
       <button id="play-btn" hidden>Play</button>

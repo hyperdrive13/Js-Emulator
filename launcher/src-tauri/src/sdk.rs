@@ -22,9 +22,6 @@ use std::process::Command;
 // tradeoff. Verified reachable as of writing.
 const CMDLINE_TOOLS_BUILD: &str = "15859902";
 
-const PLATFORM: &str = "android-36";
-const SYSTEM_IMAGE: &str = "system-images;android-36;google_apis_playstore;x86_64";
-
 fn host_os_tag() -> &'static str {
     if cfg!(target_os = "windows") {
         "win"
@@ -82,16 +79,26 @@ pub fn emulator_path(root: &Path) -> PathBuf {
     root.join("emulator").join(bin_name("emulator"))
 }
 
-pub fn is_ready(root: &Path) -> bool {
-    emulator_path(root).exists()
-        && root.join("platform-tools").exists()
-        && root.join(SYSTEM_IMAGE.replace(';', "/")).exists()
+pub fn adb_path(root: &Path) -> PathBuf {
+    let name = if cfg!(target_os = "windows") { "adb.exe" } else { "adb" };
+    root.join("platform-tools").join(name)
+}
+
+/// The shared engine: cmdline-tools + platform-tools + the emulator binary
+/// itself, independent of which Android version/device someone picks.
+pub fn is_engine_ready(root: &Path) -> bool {
+    emulator_path(root).exists() && root.join("platform-tools").exists()
+}
+
+/// Whether the specific Android-version system image is installed.
+pub fn is_image_ready(root: &Path, api: &str) -> bool {
+    root.join(crate::catalog::system_image_rel_path(api)).exists()
 }
 
 /// Downloads cmdline-tools (if `root` doesn't already have them) and installs
-/// platform-tools + emulator + the one system image we standardize on.
-/// Reports progress lines through `on_progress`.
-pub fn bootstrap(root: &Path, on_progress: impl Fn(String)) -> Result<(), String> {
+/// platform-tools + emulator. Independent of which Android version gets
+/// picked — this only needs to happen once per machine.
+pub fn bootstrap_engine(root: &Path, on_progress: impl Fn(String)) -> Result<(), String> {
     let cmdline_tools_dir = root.join("cmdline-tools").join("latest");
     if !sdkmanager_path(root).exists() {
         on_progress("Downloading Android command-line tools...".into());
@@ -150,13 +157,11 @@ pub fn bootstrap(root: &Path, on_progress: impl Fn(String)) -> Result<(), String
         let _ = child.wait();
     }
 
-    on_progress("Installing platform-tools, emulator, and system image (this is several GB, may take a while)...".into());
+    on_progress("Installing platform-tools and emulator...".into());
     let status = Command::new(sdkmanager_path(root))
         .arg(format!("--sdk_root={}", root.display()))
         .arg("platform-tools")
         .arg("emulator")
-        .arg(format!("platforms;{PLATFORM}"))
-        .arg(SYSTEM_IMAGE)
         .status()
         .map_err(|e| format!("sdkmanager failed to run: {e}"))?;
 
@@ -164,8 +169,26 @@ pub fn bootstrap(root: &Path, on_progress: impl Fn(String)) -> Result<(), String
         return Err("sdkmanager exited with an error installing packages".into());
     }
 
-    on_progress("Android SDK ready.".into());
+    on_progress("Emulator engine ready.".into());
     Ok(())
 }
 
-pub const SYSTEM_IMAGE_ID: &str = SYSTEM_IMAGE;
+/// Installs the platform + system image for one specific Android version.
+/// Several GB, so only run for versions someone actually picks.
+pub fn install_image(root: &Path, api: &str, on_progress: impl Fn(String)) -> Result<(), String> {
+    on_progress(format!(
+        "Downloading Android {api} system image (several GB, may take a while)..."
+    ));
+    let status = Command::new(sdkmanager_path(root))
+        .arg(format!("--sdk_root={}", root.display()))
+        .arg(crate::catalog::platform_id(api))
+        .arg(crate::catalog::system_image_id(api))
+        .status()
+        .map_err(|e| format!("sdkmanager failed to run: {e}"))?;
+
+    if !status.success() {
+        return Err(format!("sdkmanager exited with an error installing Android {api}"));
+    }
+    on_progress(format!("Android {api} image ready."));
+    Ok(())
+}

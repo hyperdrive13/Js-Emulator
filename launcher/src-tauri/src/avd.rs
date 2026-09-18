@@ -1,12 +1,11 @@
-//! Creates and tunes the one "just works for most games" virtual device we
-//! ship by default. Power-user tweaks (more RAM, a second instance, etc.) are
-//! left as later settings, not something we need to ask up front.
+//! Creates and tunes a virtual device for a given (device profile, Android
+//! version) combo. Defaults are picked so it "just works for most games";
+//! people can additionally pick their own device/version instead.
 
-use crate::sdk::{self, SYSTEM_IMAGE_ID};
+use crate::catalog;
+use crate::sdk;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-
-pub const AVD_NAME: &str = "gaming_phone";
 
 /// Default-per-user AVD storage location (avdmanager's own default, honoring
 /// ANDROID_AVD_HOME if the user already has it set).
@@ -20,20 +19,28 @@ fn avd_home() -> PathBuf {
         .join("avd")
 }
 
-pub fn avd_dir() -> PathBuf {
-    avd_home().join(format!("{AVD_NAME}.avd"))
+pub fn avd_dir(name: &str) -> PathBuf {
+    avd_home().join(format!("{name}.avd"))
 }
 
-pub fn exists() -> bool {
-    avd_dir().join("config.ini").exists()
+pub fn exists(name: &str) -> bool {
+    avd_dir(name).join("config.ini").exists()
 }
 
-pub fn ensure(sdk_root: &Path, on_progress: impl Fn(String)) -> Result<(), String> {
-    if exists() {
+pub fn ensure(
+    sdk_root: &Path,
+    device: &str,
+    api: &str,
+    on_progress: impl Fn(String),
+) -> Result<(), String> {
+    catalog::validate_device(device)?;
+    catalog::validate_api(api)?;
+    let name = catalog::avd_name(device, api);
+    if exists(&name) {
         return Ok(());
     }
 
-    on_progress("Creating virtual device...".into());
+    on_progress(format!("Creating virtual device ({device}, Android {api})..."));
     let mut cmd = Command::new(sdk::avdmanager_path(sdk_root));
     // avdmanager takes no --sdk_root flag (unlike sdkmanager) — it reads the
     // SDK location from this env var instead, which matters when we're
@@ -42,11 +49,11 @@ pub fn ensure(sdk_root: &Path, on_progress: impl Fn(String)) -> Result<(), Strin
         .arg("create")
         .arg("avd")
         .arg("-n")
-        .arg(AVD_NAME)
+        .arg(&name)
         .arg("-k")
-        .arg(SYSTEM_IMAGE_ID)
+        .arg(catalog::system_image_id(api))
         .arg("-d")
-        .arg("pixel_6")
+        .arg(device)
         .arg("--force")
         .stdin(Stdio::piped())
         .stdout(Stdio::null())
@@ -63,7 +70,7 @@ pub fn ensure(sdk_root: &Path, on_progress: impl Fn(String)) -> Result<(), Strin
         return Err("avdmanager exited with an error creating the device".into());
     }
 
-    tune_for_gaming()?;
+    tune_for_gaming(&name)?;
     on_progress("Virtual device ready.".into());
     Ok(())
 }
@@ -71,8 +78,8 @@ pub fn ensure(sdk_root: &Path, on_progress: impl Fn(String)) -> Result<(), Strin
 /// Bumps the freshly-created AVD's defaults from avdmanager's conservative
 /// baseline (2GB RAM) to something that actually plays games well, scaled
 /// to what the host machine has to give.
-fn tune_for_gaming() -> Result<(), String> {
-    let config_path = avd_dir().join("config.ini");
+fn tune_for_gaming(name: &str) -> Result<(), String> {
+    let config_path = avd_dir(name).join("config.ini");
     let contents = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
 
     let mut sys = sysinfo::System::new();
@@ -122,18 +129,22 @@ mod tests {
     /// Exercises the real avdmanager + config tuning against whatever SDK is
     /// on the host. Skips (rather than fails) if no SDK is present, since CI
     /// machines won't have one; on a dev box with the SDK already set up this
-    /// actually creates/updates the "gaming_phone" AVD.
+    /// actually creates/updates the AVD for the default device/version.
     #[test]
     fn creates_and_tunes_gaming_avd() {
         let root = sdk::find_sdk_root();
-        if !sdk::is_ready(&root) {
+        if !(sdk::is_engine_ready(&root) && sdk::is_image_ready(&root, catalog::DEFAULT_API)) {
             eprintln!("skipping: no ready Android SDK found at {}", root.display());
             return;
         }
-        ensure(&root, |msg| println!("[setup] {msg}")).expect("ensure() should succeed");
-        assert!(exists(), "AVD directory should exist after ensure()");
+        let name = catalog::avd_name(catalog::DEFAULT_DEVICE, catalog::DEFAULT_API);
+        ensure(&root, catalog::DEFAULT_DEVICE, catalog::DEFAULT_API, |msg| {
+            println!("[setup] {msg}")
+        })
+        .expect("ensure() should succeed");
+        assert!(exists(&name), "AVD directory should exist after ensure()");
 
-        let config = std::fs::read_to_string(avd_dir().join("config.ini")).unwrap();
+        let config = std::fs::read_to_string(avd_dir(&name).join("config.ini")).unwrap();
         assert!(config.contains("hw.gpu.enabled=yes"));
         assert!(config.contains("PlayStore.enabled=yes"));
         println!("{config}");
