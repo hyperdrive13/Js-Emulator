@@ -5,6 +5,25 @@ own Android instance for playing mobile games — one download, no manual
 Android Studio/SDK fumbling. Runs entirely on each person's own machine, no
 server dependency.
 
+## Download
+
+Grab the latest build from the
+[Releases page](https://github.com/hyperdrive13/Js-Emulator/releases/latest):
+
+| OS | File |
+|---|---|
+| Windows | `Js.Emulator_<version>_x64-setup.exe` (installer) |
+| Linux (any distro) | `Js.Emulator_<version>_amd64.AppImage` (portable) |
+| Debian / Ubuntu | `Js.Emulator_<version>_amd64.deb` |
+| Fedora / openSUSE | `Js.Emulator-<version>-1.x86_64.rpm` |
+
+- **Windows is untested so far.** The installer was cross-compiled on Linux
+  and hasn't been run on a real Windows machine yet.
+- The Windows installer isn't code-signed, so SmartScreen will warn on first
+  run. Click **More info → Run anyway**.
+- First launch downloads the Android SDK and system image from Google
+  (a few GB), so the first setup takes a while.
+
 ## Why this architecture
 
 Writing an Android emulator from scratch (CPU virtualization, GPU
@@ -57,7 +76,9 @@ KVM, and Rust toolchain installed/reachable):
       Linux. Treat Windows as unverified until this line is updated — don't
       assume it works there just because the code has `cfg!(windows)`
       branches for paths/binary names.
-- [ ] Packaging real installers (.exe / .AppImage or .deb)
+- [x] Packaging installers: Windows NSIS `.exe` (cross-compiled, unsigned),
+      Linux `.AppImage` / `.deb` / `.rpm`, published as GitHub release v0.1.0
+- [ ] Code-signing the Windows installer (no SmartScreen warning)
 - [ ] Icon/branding (currently the Tauri default icon)
 - [ ] Per-app keymapping presets (mouse/keyboard → touch)
 - [ ] Multi-instance support if you ever want more than one Android instance
